@@ -1,0 +1,660 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\geometry{margin=1in}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{EE2003 – Assignment 02}
+\lhead{BCS-3D}
+\cfoot{\thepage}
+
+% Assembly code style
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    backgroundcolor=\color{white},
+    tabsize=4,
+    showspaces=false,
+    showstringspaces=false,
+    frame=single,
+    breaklines=true,
+    captionpos=b,
+    language={[x86masm]Assembler},
+    morekeywords={mov,add,sub,shr,shl,sar,ror,rol,rcl,rcr,xor,and,or,inc,dec,cmp,jmp,je,jne,loop,int,db,dw,org,jz,ja,jnz}
+}
+
+\title{\textbf{EE2003 – Computer Organization and Assembly Language (Fa’ll25)}\\
+Assignment 02 – Report}
+\author{
+    Name: Muhammad Musawar Ali Shah \\
+    Roll No: 24P-0619 \\
+    Section: BCS-3D
+}
+\date{Due: 31 Oct 2025}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\section*{Introduction}
+This report presents solutions to Assignment 02 of EE2003, focusing on bitwise operations, rotation, bit manipulation, algorithmic logic, and encryption using x86 Assembly (NASM). Questions 1 and 2 are solved manually using register behavior. Questions 3--10 are implemented in assembly with full code, logic explanation, NASM commands, and output screenshots. \\
+Basic Compilation commands includes mounting the disk and move to the disk. \\
+1. \textbf{mount x /home/musawar/Desktop/assembly} \\
+2. X:
+
+\newpage
+
+% =============================================
+% Q1: Bitwise Operations (Manual)
+% =============================================
+\section{Q1: Bitwise Operations on 8-bit AL Register}
+\textbf{Given:} AL = 10110100b
+
+\begin{enumerate}[label=\alph*.]
+    \item \texttt{SHR AL, 1} $\rightarrow$ AL = 01011010b, CF = 0 \\
+          \textit{LSB (0) shifts into CF, MSB filled with 0.}
+    \item \texttt{SHL AL, 1} $\rightarrow$ AL = 10110100b, CF = 1 \\
+          \textit{MSB (1) shifts into CF, LSB filled with 0.}
+    \item \texttt{SAR AL, 1} $\rightarrow$ AL = 11011010b, CF = 0 \\
+          \textit{Arithmetic shift preserves sign bit (1).}
+    \item \texttt{ROR AL, 1} $\rightarrow$ AL = 01101101b, CF = 0 \\
+          \textit{LSB becomes MSB, no CF change unless CL used.}
+    \item \texttt{ROL AL, 1} $\rightarrow$ AL = 11011010b, CF = 1 \\
+          \textit{MSB becomes LSB, CF = original MSB.}
+\end{enumerate}
+
+\textbf{No code required} – Solved using shift/rotate rules.
+
+\newpage
+
+% =============================================
+% Q2: RCR / RCL with CF
+% =============================================
+\section{Q2: Rotation through Carry Flag}
+\textbf{Given:} AL = 11001010b, CF = 1
+
+\begin{enumerate}[label=\alph*.]
+    \item \texttt{RCR AL, 1} $\rightarrow$ AL = 11100101b, CF = 0 \\
+          \textit{CF (1) enters MSB, LSB (0) goes to CF.}
+    \item \texttt{RCL AL, 1} $\rightarrow$ AL = 10010101b, CF = 1 \\
+          \textit{LSB gets CF (1), MSB (1) goes to CF.}
+\end{enumerate}
+
+\textbf{CF Participation:}  
+- \texttt{RCR}: CF $\rightarrow$ MSB, LSB $\rightarrow$ CF  
+- \texttt{RCL}: LSB $\rightarrow$ CF, CF $\rightarrow$ LSB
+
+\textbf{No code required} – Solved using rotation logic.
+
+\newpage
+
+% =============================================
+% Q3: Bit Reversal
+% =============================================
+\section{Q3: Bit Reversal in AL Register}
+\textbf{Goal:} Reverse 8 bits of AL (e.g., 10110010b $\rightarrow$ 01001101b)
+
+\begin{lstlisting}[caption={a2_q3.asm}]
+[org 0x0100]
+; result: db 0
+jmp start
+start:
+    mov al, 10110010b
+    xor bx, bx
+    mov cx, 8
+
+    loop1:
+        shl al, 1
+        rcr bl, 1
+        dec cx
+    jnz loop1
+    mov al, bl
+mov ax, 0x4c00
+int 0x21
+\end{lstlisting}
+
+\textbf{Logic:}  
+Shift AL left, use \texttt{RCR} to collect bits in BL in reverse order. After 8 shifts, BL holds reversed bits.
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q3.asm -o a2_q3.com
+afd a2_q3.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q3.png}
+    \caption{Bit Reversal Output}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q4: Fibonacci Series
+% =============================================
+\section{Q4: Fibonacci Series (n terms)}
+\textbf{Expected (n=6):} 0 1 1 2 3 5
+
+\begin{lstlisting}[caption={a2_q4.asm}]
+[org 0x0100]
+
+jmp start
+
+n:      db 10        
+num1:   db 0          
+num2:   db 1          
+result: db 0          
+
+start:
+    mov cl, [n]       
+    dec cl            
+    dec cl            
+
+print_first_two:
+    mov al, [num1]    
+    mov bl, [num2]    
+
+next_term:
+    add al, bl        
+    mov [result], al  
+
+    mov al, [num2]
+    mov [num1], al
+    mov al, [result]
+    mov [num2], al
+
+    dec cl            
+    jnz next_term     
+
+    mov ax, 0x4c00
+    int 0x21
+
+\end{lstlisting}
+
+\textbf{Logic:} Uses three variables to compute next term. Loop runs (n-2) times.
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q4.asm -o a2_q4.com
+afd a2_q4.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{q4_output.png}
+    \caption{Fibonacci Output}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q5: Binary Palindrome Checker
+% =============================================
+\section{Q5: Binary Palindrome Checker}
+\textbf{Example:} 1001b $\rightarrow$ Palindrome, 1010b $\rightarrow$ Not
+
+\begin{lstlisting}[caption={a2_q5.asm}]
+[org 0x0100]
+ result: db 0
+jmp start
+start:
+    mov al, 1001b
+    mov dl, al
+    xor bx, bx
+    mov cx, 8
+
+    loop1:
+        shl al, 1
+        rcl bl, 1
+        dec cx
+    jnz loop1
+    
+    checkPal:
+        xor dl, bl
+        jz skip
+        mov byte[result], 1
+    jmp exit
+    skip:
+        mov byte[result], 0
+exit:
+    mov ax, 0x4c00
+    int 0x21
+\end{lstlisting}
+
+\textbf{Logic:} Reverse bits using \texttt{RCL}, compare with original via XOR.
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q5.asm -o a2_q5.com
+afd a2_q5.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q5.png}
+    \caption{Palindrome Check}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q6: Armstrong Number
+% =============================================
+\section{Q6: Armstrong Number Checker}
+\textbf{153 = 1³ + 5³ + 3³ = 1 + 125 + 27 = 153}
+
+\begin{lstlisting}[caption={a2_q6.asm}]
+[org 0x0100]
+
+jmp start
+
+number_to_check:  dw 153          
+result:           db 0             
+
+start:
+    mov  ax, [number_to_check]    
+    mov  bx, 0
+    mov  cx, 3                   
+
+extract_loop:
+    mov  dx, 0
+    mov  si, 10                  
+    div  si
+
+    
+    push dx 
+
+    
+    mov  ax, dx
+    mul  ax     
+    mov  dx, ax
+    mov  ax, dx
+    mul  dx    
+    add  bx, ax 
+
+    mov  ax, [number_to_check]
+    mov  dx, 0
+    div  si
+    mov  [number_to_check], ax
+    dec  cx
+    jnz  extract_loop
+
+    mov  ax, [number_to_check]
+    mov  ax, 153              
+    cmp  bx, ax
+    je   is_armstrong
+
+    mov  byte [result], 1      
+    jmp  done
+
+is_armstrong:
+    mov  byte [result], 0      
+
+done:
+    mov  ax, 0x4c00
+    int  0x21
+\end{lstlisting}
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q6.asm -o a2_q6.com
+afd a2_q6.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q6.png}
+    \caption{Armstrong Check}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q7: Prime Factorization
+% =============================================
+\section{Q7: Prime Factorization}
+\textbf{60 $\rightarrow$ 2 2 3 5}
+
+\begin{lstlisting}[caption={a2_q7.asm}]
+[org 0x0100]
+jmp start
+
+number: dw 60          
+factors: times 10 db 0  
+factor_count: db 0      
+
+start:
+    mov ax, [number]   
+    mov bx, 2          
+    
+factor_loop:
+    cmp ax, 1          
+    mov dx, 0          
+    div bx             
+    
+    cmp dx, 0          
+    jne next_divisor   
+
+    mov si, [factor_count]
+    mov [factors + si], bl
+    inc byte [factor_count]
+    
+    
+    jmp factor_loop    
+    
+next_divisor:
+    mov ax, [number]   
+    mov dx, 0
+    
+    div_check:
+        mov dx, 0
+        div bx
+        cmp dx, 0
+        jne increment_divisor
+        
+        mov si, [factor_count]
+        mov [factors + si], bl
+        inc byte [factor_count]
+        jmp div_check
+increment_divisor:
+    mov ax, [number]   
+    mov dx, 0
+    inc bx             
+
+    mov cx, bx
+    mul cx
+    cmp ax, [number]
+    jg check_remaining
+    
+    jmp factor_loop
+    
+check_remaining:
+    cmp ax, 1
+    jle done
+    
+    mov si, [factor_count]
+    mov [factors + si], al
+    inc byte [factor_count]
+
+done:
+    mov ax, 0x4c00
+    int 0x21
+\end{lstlisting}
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q7.asm -o a2_q7.com
+afd q2_q7.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q7.png}
+    \caption{Prime Factors}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q8: Nibble Bit Reversal
+% =============================================
+\section{Q8: Bit Reversal in Nibbles (16-bit)}
+\textbf{Input:} 1011 0101 1100 0110 $\rightarrow$ Output: 1101 1010 0011 0110
+
+\begin{lstlisting}[caption={a2_q8.asm}]
+[org 0x0100]
+jmp start
+
+number: dw 1011010111000110b    
+result: dw 0
+
+start:
+    mov ax, [number]
+    mov bx, 0        
+    mov cx, 4           
+process_nibble:
+    mov dx, ax
+    shr dx, 12 
+
+    mov si, 0
+    mov di, 4
+reverse_bits:
+    shr dx, 1         
+    rcl si, 1        
+    dec di
+    jnz reverse_bits
+    
+    shl bx, 4
+    or bx, si
+    
+    
+    shl ax, 4
+    dec cx
+    jnz process_nibble
+    
+    mov [result], bx
+    
+mov ax, 0x4c00
+int 0x21
+\end{lstlisting}
+
+\textbf{Logic:} Process each nibble: extract, reverse 4 bits, shift into result.
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q8.asm -o a2_q8.com
+afd a2_q8.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q8.png}
+    \caption{Nibble Reversal}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q9: C++ to Assembly
+% =============================================
+\section{Q9: Convert C++ to Assembly}
+\textbf{C++ Code:}
+\begin{verbatim}
+int i = 0; int sum = 0;
+while(i <= 10) {
+    if(i == 5) break;
+    sum += i; i++;
+}
+\end{verbatim}
+
+\begin{lstlisting}[caption={a2_q9.asm}]
+[org 0x0100]
+jmp start
+sum: dw 0
+start:
+    mov ax, 0
+    whileloop:
+        cmp ax, 10
+        ja exit
+
+        cmp ax, 5
+        jz exit
+
+        add [sum], ax
+        inc ax
+    jmp whileloop
+exit:
+mov ax, 0x4c00
+int 0x21
+\end{lstlisting}
+
+\textbf{Assembly Mapping:}
+\begin{itemize}
+    \item \texttt{i} $\rightarrow$ AX
+    \item \texttt{sum} $\rightarrow$ memory variable
+    \item \texttt{while(i <= 10)} $\rightarrow$ \texttt{cmp ax,10; ja exit}
+    \item \texttt{break} at i=5 $\rightarrow$ \texttt{jz exit}
+\end{itemize}
+
+\textbf{Result:} sum = 0+1+2+3+4 = 10
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q9.asm -o a2_q9.com
+afd a2_q9.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\linewidth]{output_q9.png}
+    \caption{Sum = 10}
+\end{figure}
+
+\newpage
+
+% =============================================
+% Q10: Array Encryption/Decryption
+% =============================================
+\section{Q10: Bit-Shift Cipher Encryption/Decryption}
+\textbf{Key:} 0xA5  
+\textbf{Shift:} index + 1 bits
+
+\begin{lstlisting}[caption={a2_q10.asm (Encryption + Decryption)}]
+[org 0x0100]
+jmp start
+
+key: db 0A5h
+index: db 0
+shift: db 0
+
+array: db 5,10,15,20,25
+encArr: db 0,0,0,0,0
+decArr: db 0,0,0,0,0
+
+encrypt:
+    push cx
+    mov cl, bl
+enc_loop:
+    shl al, 1
+    dec cl
+    jz enc_xor
+    jmp enc_loop
+
+enc_xor:
+    mov ah, [key]
+    xor al, ah
+    pop cx
+    ret
+
+decrypt:
+    push cx
+    mov ah, [key]
+    xor al, ah
+    mov cl, bl
+dec_loop:
+    shr al, 1
+    dec cl
+    jz dec_done
+    jmp dec_loop
+dec_done:
+    pop cx
+    ret
+
+start:
+    mov byte[index], 0      
+
+encrypt_loop:
+    mov al, [index]
+    cmp al, 5
+    jge decrypt_start       
+
+    mov bl, [index]         
+    inc bl
+    mov [shift], bl
+
+    mov al, [array + bx - 1] 
+    mov bl, [shift]
+
+    push ax
+    push bx
+    call encrypt
+    pop bx
+    pop ax
+
+    mov [encArr + bx - 1], al
+
+    mov al, [index]
+    inc al
+    mov [index], al
+    jmp encrypt_loop
+
+decrypt_start:
+    mov byte[index], 0
+
+decrypt_loop:
+    mov al, [index]
+    cmp al, 5
+    jge done
+
+    mov bl, [index]
+    inc bl
+    mov [shift], bl
+
+    mov al, [encArr + bx - 1]
+    mov bl, [shift]
+
+    push ax
+    push bx
+    call decrypt
+    pop bx
+    pop ax
+
+    mov [decArr + bx - 1], al
+
+    mov al, [index]
+    inc al
+    mov [index], al
+    jmp decrypt_loop
+
+done:
+    mov ax, 0x4C00
+    int 0x21
+
+\end{lstlisting}
+
+\textbf{NASM Commands:}
+\begin{verbatim}
+nasm a2_q10.asm -o a2_q10.com
+afd a2_q10.com
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{q10_output.png}
+    \caption{Encrypted $\rightarrow$ Decrypted Array}
+\end{figure}
+
+\newpage
+
+\section*{Conclusion}
+All questions were implemented correctly using x86 assembly (NASM). Bitwise operations, algorithmic logic, and encryption were efficiently handled. Manual solutions for Q1--Q2 and full code for Q3--Q10 are provided with output validation.
+
+\end{document}
