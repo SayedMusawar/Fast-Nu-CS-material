@@ -1,0 +1,70 @@
+#include<iostream>
+#include<stack>
+using namespace std;
+
+int precdence(char ch){
+    if (ch == '^')
+        return 3;
+    else if (ch == '*' || ch == '/')
+        return 2;
+    else if (ch == '+' || ch == '-')
+        return 1;
+    else
+        return 0;
+}
+
+bool isOperand(char ch){
+    return ( (ch>='a' && ch<='z') || (ch>='A' && ch<='Z') || (ch>='0' && ch<='9') );
+}
+
+string infixToPostfix(string infixExp){
+    stack<char> stk;
+    string postfix = "";
+    for (int i=0; i<infixExp.length(); i++){
+            char token = infixExp[i];
+        if (token == ' ') continue;
+        if ( isOperand(token) )
+            postfix += token;
+        else if (token == '(')
+                 stk.push(token);
+            else if ( token == ')'){
+                    while ( ( !stk.empty() ) && (stk.top() != '(') ){
+                        postfix += stk.top();
+                        stk.pop();
+                    }
+                    if ( !stk.empty() ) stk.pop();
+            }
+                 else {
+                        while (!stk.empty() && precdence(stk.top()) >= precdence(token)  ){
+                            if (token == '^' && stk.top() == '^') break;
+                            postfix += stk.top();
+                            stk.pop();
+                        }
+                        stk.push(token);
+                 }
+    }
+    while (!stk.empty()){
+        postfix += stk.top();
+        stk.pop();
+    }
+    return postfix;
+}
+
+
+int main(){
+
+string postfix = "", infix = "";
+
+while (true){
+    cout<<"\n enter infix expression = ";
+    getline(cin, infix);
+    if (infix == "exit" || infix == "EXIT") break;
+    postfix = infixToPostfix(infix);
+    cout<<"\n POSTFIX = "<<postfix;
+}
+
+
+
+cout<<endl;
+return 0;
+}
